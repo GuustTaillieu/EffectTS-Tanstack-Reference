@@ -15,7 +15,6 @@ import { Effect } from "effect"
 import { useEffectMutation } from "@quiz/client-sdk"
 import type { JoinLobbyInput } from "@quiz/domain"
 import { quizClient } from "../lib/api"
-import { queryClient } from "../lib/queryClient"
 
 export default function JoinScreen() {
   const router = useRouter()
@@ -56,8 +55,7 @@ export default function JoinScreen() {
       onError: (err: Error) => {
         setErrorMessage(err.message)
       }
-    },
-    queryClient
+    }
   )
 
   const handleJoin = () => {

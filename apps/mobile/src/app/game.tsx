@@ -25,7 +25,6 @@ import { Effect } from "effect"
 import { useEffectMutation } from "@quiz/client-sdk"
 import { quizClient } from "../lib/api"
 import { subscribeToLobbyEvents } from "../lib/sse"
-import { queryClient } from "../lib/queryClient"
 
 export default function GameScreen() {
   const { code, player } = useLocalSearchParams<{ code: string; player: string }>()
@@ -69,8 +68,7 @@ export default function GameScreen() {
       onError: (err: Error) => {
         setSubmissionFeedback(err.message)
       }
-    },
-    queryClient
+    }
   )
 
   useEffect(() => {

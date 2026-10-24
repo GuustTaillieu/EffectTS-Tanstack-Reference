@@ -1,4 +1,7 @@
-import type { LobbyEvent } from "@quiz/domain"
+import { Schema } from "effect"
+import { LobbyEvent } from "@quiz/domain"
+
+const decodeLobbyEvent = Schema.decodeUnknownSync(LobbyEvent)
 
 export function subscribeToLobbyEvents(
   eventsUrl: string,
@@ -36,16 +39,17 @@ export function subscribeToLobbyEvents(
           const match = block.match(/^data:\s*(.+)$/m)
           if (match) {
             try {
-              const parsed = JSON.parse(match[1]) as LobbyEvent
-              onEvent(parsed)
+              const rawJson = JSON.parse(match[1])
+              const validatedEvent = decodeLobbyEvent(rawJson)
+              onEvent(validatedEvent)
             } catch (err) {
-              console.warn("Failed to parse SSE event JSON:", err)
+              console.warn("Failed to parse or validate SSE event JSON:", err)
             }
           }
         }
       }
-    } catch (err: any) {
-      if (err.name !== "AbortError") {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== "AbortError") {
         onError?.(err)
       }
     }

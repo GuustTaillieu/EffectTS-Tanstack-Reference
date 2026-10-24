@@ -11,15 +11,18 @@ import {
 
 export { RpcClientError }
 
+/**
+ * Derived typed client from the QuizRpcs RpcGroup definition.
+ * Any new procedure added to QuizRpcs is automatically typed here.
+ */
 export type DerivedRpcClient = RpcClient.FromGroup<typeof QuizRpcs, RpcClientError.RpcClientError>
 
-export type QuizClient = {
+/**
+ * Full QuizClient type combining derived RPC methods with client metadata.
+ */
+export type QuizClient = DerivedRpcClient & {
   readonly baseUrl: string
   readonly getEventsUrl: (lobbyCode: string) => string
-  readonly joinLobby: DerivedRpcClient["JoinLobby"]
-  readonly submitGuess: DerivedRpcClient["SubmitGuess"]
-  readonly JoinLobby: DerivedRpcClient["JoinLobby"]
-  readonly SubmitGuess: DerivedRpcClient["SubmitGuess"]
 }
 
 /**
@@ -43,6 +46,7 @@ export function effectQueryOptions<A, E>(options: {
 /**
  * Custom mutation hook wrapping an Effect program for React and React Native.
  * Preserves the exact typed error channel E!
+ * QueryClient is automatically inferred from React context if omitted.
  */
 export function useEffectMutation<Input, A, E>(
   effectFn: (input: Input) => Effect.Effect<A, E>,
@@ -78,31 +82,35 @@ export const makeQuizClient = (baseUrl: string) =>
   )
 
 /**
- * Creates a convenient, strongly typed QuizClient instance.
- * Every method call is a self-contained, scoped Effect ready for .pipe(Effect.catchTags(...)).
- * Types are 100% derived from the QuizRpcs RpcGroup with zero manual type duplication.
+ * Creates a strongly typed QuizClient instance using a dynamic Proxy.
+ * All procedures from QuizRpcs are automatically bound without manual boilerplate.
+ * Every call is a self-contained, scoped Effect ready for .pipe(Effect.catchTags(...)).
  */
 export function createQuizClient(baseUrl: string): QuizClient {
   const cleanBase = baseUrl.replace(/\/$/, "")
   const protocolLayer = makeRpcProtocolLayer(cleanBase)
 
-  const call = <A, E>(
-    execute: (client: DerivedRpcClient) => Effect.Effect<A, E>
-  ): Effect.Effect<A, E> =>
-    Effect.gen(function* () {
-      const client = yield* RpcClient.make(QuizRpcs)
-      return yield* execute(client)
-    }).pipe(
-      Effect.provide(protocolLayer),
-      Effect.scoped
-    )
-
-  return {
+  const meta = {
     baseUrl: cleanBase,
-    getEventsUrl: (lobbyCode: string) => `${cleanBase}/api/lobby/${lobbyCode}/events`,
-    joinLobby: (input) => call((c) => c.JoinLobby(input)),
-    submitGuess: (input) => call((c) => c.SubmitGuess(input)),
-    JoinLobby: (input) => call((c) => c.JoinLobby(input)),
-    SubmitGuess: (input) => call((c) => c.SubmitGuess(input))
+    getEventsUrl: (lobbyCode: string) => `${cleanBase}/api/lobby/${lobbyCode}/events`
   }
+
+  return new Proxy(meta as any, {
+    get(target, prop, receiver) {
+      if (prop in target) {
+        return Reflect.get(target, prop, receiver)
+      }
+      if (typeof prop === "string") {
+        return (input: unknown, options?: unknown) =>
+          Effect.gen(function* () {
+            const client = yield* RpcClient.make(QuizRpcs)
+            return yield* (client as any)[prop](input, options)
+          }).pipe(
+            Effect.provide(protocolLayer),
+            Effect.scoped
+          )
+      }
+      return Reflect.get(target, prop, receiver)
+    }
+  }) as QuizClient
 }

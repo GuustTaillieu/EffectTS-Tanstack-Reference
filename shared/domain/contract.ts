@@ -11,16 +11,15 @@ import { GameNotFoundError, SubmitGuessInput } from "./game"
 
 /**
  * Single source of truth for full-stack API procedures via Effect RPC.
- * Automatically validates payloads, returns typed success values,
- * and compiler-enforces the exact error channels.
+ * Standardized on idiomatic camelCase procedure names.
  */
 export const QuizRpcs = RpcGroup.make(
-  Rpc.make("JoinLobby", {
+  Rpc.make("joinLobby", {
     payload: JoinLobbyInput,
     success: Lobby,
     error: Schema.Union([LobbyNotFoundError, LobbyFullError, UsernameTakenError])
   }),
-  Rpc.make("SubmitGuess", {
+  Rpc.make("submitGuess", {
     payload: SubmitGuessInput,
     success: Schema.Void,
     error: GameNotFoundError
