@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "noUncheckedIndexedAccess": true,
+    "paths": {
+      "@quiz/domain": ["./shared/domain/index.ts"],
+      "@quiz/domain/*": ["./shared/domain/*"],
+      "@quiz/client-sdk": ["./shared/client-sdk/index.ts"],
+      "@quiz/client-sdk/*": ["./shared/client-sdk/*"]
+    }
+  }
+}

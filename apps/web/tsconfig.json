@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "types": [
+      "node",
+      "vite/client"
+    ],
+    "paths": {
+      "@quiz/domain": ["../../shared/domain/index.ts"],
+      "@quiz/domain/*": ["../../shared/domain/*"],
+      "@quiz/client-sdk": ["../../shared/client-sdk/index.ts"],
+      "@quiz/client-sdk/*": ["../../shared/client-sdk/*"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "*.ts"
+  ]
+}
