@@ -40,12 +40,18 @@ export class LobbyService extends Context.Service<
   }
 >()("LobbyService") { }
 
+// Persist singleton state across Vite HMR, SSR module evaluation boundaries, and TanStack Start API routes
+const globalLobbyState = globalThis as typeof globalThis & {
+  __QUIZ_LOBBIES_REF__?: Ref.Ref<Map<string, Lobby>>
+  __QUIZ_SUBSCRIBERS_REF__?: Ref.Ref<Map<string, Set<Queue.Queue<LobbyEvent>>>>
+}
+
 // Live Layer with in-memory state
 export const LobbyServiceLive = Layer.effect(
   LobbyService,
   Effect.gen(function* () {
-    const lobbiesRef = yield* Ref.make<Map<string, Lobby>>(new Map())
-    const subscribersRef = yield* Ref.make<Map<string, Set<Queue.Queue<LobbyEvent>>>>(new Map())
+    const lobbiesRef = globalLobbyState.__QUIZ_LOBBIES_REF__ ??= yield* Ref.make<Map<string, Lobby>>(new Map())
+    const subscribersRef = globalLobbyState.__QUIZ_SUBSCRIBERS_REF__ ??= yield* Ref.make<Map<string, Set<Queue.Queue<LobbyEvent>>>>(new Map())
 
     const crypto = yield* Crypto.Crypto
     const quizzes = yield* QuizService
@@ -74,6 +80,7 @@ export const LobbyServiceLive = Layer.effect(
             next.set(code, lobby)
             return next
           })
+          console.log(`[LobbyService] Lobby created: "${code}" for quiz "${quizId}" by host "${host}". Total active lobbies:`, (yield* Ref.get(lobbiesRef)).size)
 
           return lobby
         }),
@@ -84,6 +91,7 @@ export const LobbyServiceLive = Layer.effect(
           const lobby = lobbies.get(code)
 
           if (!lobby) {
+            console.warn(`[LobbyService] Lobby "${code}" not found! Available lobbies in memory:`, [...lobbies.keys()])
             return yield* Effect.fail(new LobbyNotFoundError({ lobbyCode: code }))
           }
 
@@ -96,8 +104,10 @@ export const LobbyServiceLive = Layer.effect(
           const lobby = lobbies.get(code)
 
           if (!lobby) {
+            console.warn(`[LobbyService] Join failed: lobby "${code}" not found! Available lobbies:`, [...lobbies.keys()])
             return yield* Effect.fail(new LobbyNotFoundError({ lobbyCode: code }))
           }
+          console.log(`[LobbyService] Player "${username}" successfully joined lobby "${code}". Current players:`, lobby.players)
 
           if (lobby.players.length >= lobby.maxPlayers) {
             return yield* Effect.fail(

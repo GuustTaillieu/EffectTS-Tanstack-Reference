@@ -11,60 +11,32 @@ import {
   ScrollView
 } from "react-native"
 import { useRouter } from "expo-router"
-import { Effect } from "effect"
-import { useEffectMutation } from "@quiz/client-sdk"
-import type { JoinLobbyInput } from "@quiz/domain"
 import { quizClient } from "../lib/api"
+import { useJoinLobbyMutation } from "../features/lobby/hooks/useJoinLobbyMutation"
 
 export default function JoinScreen() {
   const router = useRouter()
   const [lobbyCode, setLobbyCode] = useState("")
   const [username, setUsername] = useState("")
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  // Pure, typed Effect pipeline integrated into TanStack Query mutation
-  const joinMutation = useEffectMutation(
-    (input: JoinLobbyInput) =>
-      quizClient.joinLobby(input).pipe(
-        Effect.tap((lobby) => Effect.log(`Joined lobby: ${lobby.code}`)),
-        Effect.catchTags({
-          UsernameTakenError: (err) =>
-            Effect.fail(
-              new Error(`The nickname "${err.username}" is already taken in lobby "${err.lobbyCode}"!`)
-            ),
-          LobbyNotFoundError: (err) =>
-            Effect.fail(new Error(`Lobby "${err.lobbyCode}" not found on the host screen!`)),
-          LobbyFullError: (err) =>
-            Effect.fail(new Error(`Lobby "${err.lobbyCode}" is full!`)),
-          RpcClientError: (err) =>
-            Effect.fail(
-              new Error(`Cannot connect to server at ${quizClient.baseUrl}: ${err.message}`)
-            )
-        })
-      ),
-    {
-      onSuccess: (lobby) => {
-        router.push({
-          pathname: "/game",
-          params: {
-            code: lobby.code,
-            player: username
-          }
-        })
-      },
-      onError: (err: Error) => {
-        setErrorMessage(err.message)
-      }
+  const { joinLobby, isPending, errorMessage, setErrorMessage, clearError } = useJoinLobbyMutation({
+    onSuccess: (lobby) => {
+      router.push({
+        pathname: "/game",
+        params: {
+          code: lobby.code,
+          player: username.trim()
+        }
+      })
     }
-  )
+  })
 
   const handleJoin = () => {
     if (!lobbyCode.trim() || !username.trim()) {
       setErrorMessage("Please enter both Lobby Code and your Player Name")
       return
     }
-    setErrorMessage(null)
-    joinMutation.mutate({
+    joinLobby({
       lobbyCode: lobbyCode.trim().toUpperCase(),
       username: username.trim()
     })
@@ -99,7 +71,7 @@ export default function JoinScreen() {
             value={lobbyCode}
             onChangeText={(text) => {
               setLobbyCode(text.toUpperCase())
-              setErrorMessage(null)
+              clearError()
             }}
             autoCapitalize="characters"
             maxLength={6}
@@ -113,18 +85,18 @@ export default function JoinScreen() {
             value={username}
             onChangeText={(text) => {
               setUsername(text)
-              setErrorMessage(null)
+              clearError()
             }}
             maxLength={20}
           />
 
           <TouchableOpacity
-            style={[styles.button, joinMutation.isPending && styles.buttonDisabled]}
+            style={[styles.button, isPending && styles.buttonDisabled]}
             onPress={handleJoin}
-            disabled={joinMutation.isPending}
+            disabled={isPending}
             activeOpacity={0.8}
           >
-            {joinMutation.isPending ? (
+            {isPending ? (
               <ActivityIndicator color="#09090b" />
             ) : (
               <Text style={styles.buttonText}>Join Game 🚀</Text>

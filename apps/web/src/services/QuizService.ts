@@ -25,18 +25,23 @@ export class QuizService extends Context.Service<
   }
 >()("QuizService") { }
 
+// Persist singleton state across Vite HMR, SSR module evaluation boundaries, and TanStack Start API routes
+const globalQuizState = globalThis as typeof globalThis & {
+  __QUIZ_QUIZZES_REF__?: Ref.Ref<Map<string, Quiz>>
+}
+
 // Live Layer with in-memory state
 export const QuizServiceLive = Layer.effect(
   QuizService,
   Effect.gen(function* () {
-    const quizzesRef = yield* Ref.make<Map<string, Quiz>>(new Map()
+    const quizzesRef = globalQuizState.__QUIZ_QUIZZES_REF__ ??= yield* Ref.make<Map<string, Quiz>>(new Map()
       .set("featured-quiz", new Quiz({
         id: "featured-quiz",
         owner: "featured-owner",
         title: "Featured Quiz",
         questionsWithAnswers: []
-      })
-      ))
+      }))
+    )
 
     const crypto = yield* Crypto.Crypto
 

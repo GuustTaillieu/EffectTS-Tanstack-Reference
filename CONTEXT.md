@@ -68,14 +68,26 @@ A full-stack, real-time multiplayer **Spotify Music Quiz** application built as 
         ├── metro.config.js      # Monorepo-aware Metro config with singleton deduplication
         ├── tsconfig.json        # Path mappings to @quiz/domain and @quiz/client-sdk
         └── src/
+            ├── features/
+            │   ├── lobby/
+            │   │   └── hooks/useJoinLobbyMutation.ts     # Encapsulated lobby join mutation hook
+            │   └── game/
+            │       ├── hooks/
+            │       │   ├── useSubmitGuessMutation.ts     # Optimistic guess submission mutation hook
+            │       │   └── useLobbyEvents.ts             # Schema-validated SSE stream subscription hook
+            │       └── components/
+            │           ├── WaitingView.tsx               # Waiting for host lobby view
+            │           ├── ActiveRoundView.tsx           # Active question & buzz-in interactive view
+            │           ├── RoundResultView.tsx           # Round scoreboard & answer view
+            │           └── GameOverView.tsx              # Final podium & leaderboard view
             ├── lib/
             │   ├── api.ts          # Auto-detects PC LAN IP via Constants.expoConfig?.hostUri
             │   ├── queryClient.ts  # TanStack Query client wired to React Native AppState
-            │   └── sse.ts          # Zero-dependency SSE stream reader using fetch + ReadableStream
+            │   └── sse.ts          # Schema-validated SSE stream reader
             └── app/
                 ├── _layout.tsx     # Expo Router root Stack + QueryClientProvider
-                ├── index.tsx       # Join Game screen with Effect.catchTags
-                └── game.tsx        # Player Controller screen (Buzz-in, live leaderboard, podium)
+                ├── index.tsx       # Join Game screen (uses useJoinLobbyMutation)
+                └── game.tsx        # Player Controller screen (decomposed feature slice)
 ```
 
 ---
@@ -175,6 +187,22 @@ TanStack Start uses Seroval for Server Function RPC. Seroval throws errors if fu
    - `apps/mobile/src/lib/api.ts` auto-detects the host IP using `Constants.expoConfig?.hostUri` (which contains `10.0.0.32:8081` on mobile), so mobile automatically targets `http://10.0.0.32:5173`.
    - Android Emulator loopback alias: `10.0.2.2:5173` or `adb reverse tcp:5173 tcp:5173`.
 
+### D. Singleton In-Memory State across Vite SSR & API Routes (`globalThis`)
+1. **The Vite SSR / Server Function Boundary**: In development mode with Vite and TanStack Start, Server Functions (`createServerFn`) and API Routes (`createFileRoute("/api/rpc")`) can be evaluated in separate module graphs or reloaded independently during HMR.
+2. **Ref State Isolation Bug**: If `Ref.make(new Map())` is created inside a `Layer.effect`, each evaluation creates a separate `Ref` instance. A lobby created via `createLobbyFn` in the browser would write to Instance A, while a mobile RPC call hitting `/api/rpc` would read from Instance B (which was empty), triggering a false `LobbyNotFoundError`.
+3. **The `globalThis` Solution**: In-memory state references (`lobbiesRef`, `subscribersRef`, `gamesRef`, `activeRoundsRef`, `quizzesRef`, and `EffectRuntime`) are attached to `globalThis` (`(globalThis as any).__QUIZ_LOBBIES_REF__ ??= yield* Ref.make(new Map())`). This guarantees 100% shared state across all entrypoints and survives Vite dev HMR reloads.
+
+### E. Real-Time Transport: Effect RPC Streaming vs. SSE
+1. **Server-Sent Events (SSE)**:
+   - Route: `GET /api/lobby/:code/events`
+   - Ideal for **Web Host Dashboard** because standard browsers provide native `new EventSource()` with automatic reconnects, zero client-library overhead, and native Chrome DevTools EventStream debugging.
+2. **Effect RPC Streaming (`stream: true`)**:
+   - Ideal for **Mobile / React Native Client** or clients already running the `@quiz/client-sdk` because it delivers typed, schema-validated events directly as an `Effect.Stream<LobbyEvent, RpcClientError>` without manual string chunking or text regex parsing.
+3. **Current State**:
+   - Web Host uses native browser `EventSource` on `/api/lobby/:code/events`.
+   - Mobile uses `subscribeToLobbyEvents` with zero-trust `Schema.decodeUnknownSync(LobbyEvent)` validation.
+   - `LobbyService.subscribe` yields a pure `Stream.Stream<LobbyEvent>`, so adding an RPC streaming endpoint in the future requires zero changes to core business logic.
+
 ---
 
 ## 4. Current State & Verification
@@ -190,8 +218,8 @@ apps/web typecheck:    Done (0 errors)
 
 # 2. Run unit and integration tests:
 $ pnpm -r test
-Test Files: 4 passed (4)
-Tests:      8 passed (8)
+Test Files: 5 passed (5)
+Tests:      10 passed (10)
 ```
 
 ### Active Dev Servers:

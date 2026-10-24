@@ -27,4 +27,12 @@ const GameLive = GameServiceLive.pipe(
 
 export const AppLive = Layer.mergeAll(CryptoLive, SpotifyHttpLive, QuizLive, LobbyLive, SpotifyLive, GameLive)
 
-export const EffectRuntime = ManagedRuntime.make(AppLive)
+const globalRuntimeState = globalThis as typeof globalThis & {
+  __QUIZ_EFFECT_RUNTIME__?: ManagedRuntime.ManagedRuntime<
+    Layer.Success<typeof AppLive>,
+    never
+  >
+}
+
+export const EffectRuntime = globalRuntimeState.__QUIZ_EFFECT_RUNTIME__ ??= ManagedRuntime.make(AppLive)
+

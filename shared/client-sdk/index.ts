@@ -26,6 +26,18 @@ export type QuizClient = DerivedRpcClient & {
 }
 
 /**
+ * Query Key Factory for full-stack caching and targeted invalidation across Web and Mobile.
+ */
+export const quizKeys = {
+  all: ["quiz"] as const,
+  featured: () => [...quizKeys.all, "featured"] as const,
+  lobbies: () => [...quizKeys.all, "lobby"] as const,
+  lobby: (code: string) => [...quizKeys.lobbies(), code] as const,
+  games: () => [...quizKeys.all, "game"] as const,
+  game: (code: string) => [...quizKeys.games(), code] as const
+}
+
+/**
  * Creates TanStack Query options directly from an Effect.
  * Works seamlessly on BOTH Web and React Native!
  */

@@ -8,10 +8,10 @@ import {
   startGame
 } from "../server/functions"
 import { Lobby, LobbyEvent } from "@quiz/domain"
-import { effectQueryOptions } from "@quiz/client-sdk"
+import { effectQueryOptions, quizKeys } from "@quiz/client-sdk"
 
 export const featuredQuizQuery = effectQueryOptions({
-  queryKey: ["quiz", "featured"],
+  queryKey: quizKeys.featured(),
   effect: () => getFeaturedQuiz(),
   staleTime: 1000 * 60 * 5 // 5 minutes cache
 })
@@ -24,7 +24,6 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const quiz = Route.useLoaderData()
-  console.log("LOADER QUIZ DATA:", quiz)
   const [createdLobby, setCreatedLobby] = useState<Lobby | null>(null)
   const [joinedLobby, setJoinedLobby] = useState<Lobby | null>(null)
   const [joinCode, setJoinCode] = useState("")

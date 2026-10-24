@@ -24,9 +24,15 @@ export class GameService extends Context.Service<
   }
 >()("GameService") { }
 
+// Persist singleton state across Vite HMR, SSR module evaluation boundaries, and TanStack Start API routes
+const globalGameState = globalThis as typeof globalThis & {
+  __QUIZ_GAMES_REF__?: Ref.Ref<Map<Lobby['code'], Game>>
+  __QUIZ_ACTIVE_ROUNDS_REF__?: Ref.Ref<Map<Lobby['code'], IQuizRoundManager>>
+}
+
 const makeGameService = Effect.gen(function* () {
-  const gamesRef = yield* Ref.make<Map<Lobby['code'], Game>>(new Map())
-  const activeRoundsRef = yield* Ref.make<Map<Lobby['code'], IQuizRoundManager>>(new Map())
+  const gamesRef = globalGameState.__QUIZ_GAMES_REF__ ??= yield* Ref.make<Map<Lobby['code'], Game>>(new Map())
+  const activeRoundsRef = globalGameState.__QUIZ_ACTIVE_ROUNDS_REF__ ??= yield* Ref.make<Map<Lobby['code'], IQuizRoundManager>>(new Map())
 
   const lobbyService = yield* LobbyService
   const quizService = yield* QuizService
