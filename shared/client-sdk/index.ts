@@ -1,30 +1,25 @@
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
+import { RpcClient, RpcClientError, RpcSerialization } from "effect/rpc"
+import { FetchHttpClient } from "effect/http"
+import { QuizRpcs } from "@quiz/domain"
 import {
   queryOptions,
   useMutation,
   type UseMutationOptions,
   type QueryClient
 } from "@tanstack/react-query"
-import type { QuizApiContract, NetworkError } from "@quiz/domain"
-import { NetworkError as NetworkErrorClass } from "@quiz/domain"
 
-export { NetworkError }
+export { RpcClientError }
 
-export type ApiErrors<K extends keyof QuizApiContract> =
-  QuizApiContract[K]["errors"] | NetworkError
+export type DerivedRpcClient = RpcClient.FromGroup<typeof QuizRpcs, RpcClientError.RpcClientError>
 
 export type QuizClient = {
-  readonly [K in keyof QuizApiContract]: (
-    input: QuizApiContract[K]["input"]
-  ) => Effect.Effect<QuizApiContract[K]["success"], ApiErrors<K>>
-} & {
   readonly baseUrl: string
   readonly getEventsUrl: (lobbyCode: string) => string
-}
-
-const procedurePaths: { readonly [K in keyof QuizApiContract]: QuizApiContract[K]["path"] } = {
-  joinLobby: "/api/lobby/join",
-  submitGuess: "/api/game/guess"
+  readonly joinLobby: DerivedRpcClient["JoinLobby"]
+  readonly submitGuess: DerivedRpcClient["SubmitGuess"]
+  readonly JoinLobby: DerivedRpcClient["JoinLobby"]
+  readonly SubmitGuess: DerivedRpcClient["SubmitGuess"]
 }
 
 /**
@@ -64,67 +59,50 @@ export function useEffectMutation<Input, A, E>(
 }
 
 /**
- * Generic Effect RPC caller.
- * Connects to the HTTP endpoint, parses JSON, and directly forwards typed failure objects
- * into Effect's typed error channel with ZERO manual string matching!
+ * Creates an Effect RPC Layer targeting the /api/rpc endpoint.
  */
-function callProcedure<K extends keyof QuizApiContract>(
-  baseUrl: string,
-  procedure: K,
-  input: QuizApiContract[K]["input"]
-): Effect.Effect<QuizApiContract[K]["success"], ApiErrors<K>> {
-  const path = procedurePaths[procedure]
-
-  return Effect.gen(function* () {
-    const res = yield* Effect.tryPromise({
-      try: () =>
-        fetch(`${baseUrl}${path}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(input)
-        }),
-      catch: (err) =>
-        new NetworkErrorClass({
-          message:
-            err instanceof Error
-              ? err.message
-              : `Connection to ${baseUrl} failed`
-        })
-    })
-
-    const raw = yield* Effect.tryPromise({
-      try: () =>
-        res.json() as Promise<
-          | { readonly _tag: "Success"; readonly value: QuizApiContract[K]["success"] }
-          | { readonly _tag: "Failure"; readonly error: ApiErrors<K> }
-        >,
-      catch: (err) =>
-        new NetworkErrorClass({
-          message: `Server returned invalid JSON: ${err}`
-        })
-    })
-
-    if (raw._tag === "Failure") {
-      // The server failed with a typed domain error (e.g. UsernameTakenError, LobbyNotFoundError).
-      // Since it already has its _tag and properties intact, we directly fail into Effect's error channel!
-      return yield* Effect.fail(raw.error)
-    }
-
-    return raw.value
-  })
+export const makeRpcProtocolLayer = (baseUrl: string) => {
+  const cleanBase = baseUrl.replace(/\/$/, "")
+  return RpcClient.layerProtocolHttp({ url: `${cleanBase}/api/rpc` }).pipe(
+    Layer.provide(RpcSerialization.layerJson),
+    Layer.provide(FetchHttpClient.layer)
+  )
 }
 
 /**
- * Creates a strongly typed QuizClient communicating with TanStack Start API routes.
- * The client methods and their error channels are derived dynamically from QuizApiContract!
+ * Creates a raw Effect RPC Client for QuizRpcs.
+ */
+export const makeQuizClient = (baseUrl: string) =>
+  RpcClient.make(QuizRpcs).pipe(
+    Effect.provide(makeRpcProtocolLayer(baseUrl))
+  )
+
+/**
+ * Creates a convenient, strongly typed QuizClient instance.
+ * Every method call is a self-contained, scoped Effect ready for .pipe(Effect.catchTags(...)).
+ * Types are 100% derived from the QuizRpcs RpcGroup with zero manual type duplication.
  */
 export function createQuizClient(baseUrl: string): QuizClient {
   const cleanBase = baseUrl.replace(/\/$/, "")
+  const protocolLayer = makeRpcProtocolLayer(cleanBase)
+
+  const call = <A, E>(
+    execute: (client: DerivedRpcClient) => Effect.Effect<A, E>
+  ): Effect.Effect<A, E> =>
+    Effect.gen(function* () {
+      const client = yield* RpcClient.make(QuizRpcs)
+      return yield* execute(client)
+    }).pipe(
+      Effect.provide(protocolLayer),
+      Effect.scoped
+    )
 
   return {
     baseUrl: cleanBase,
-    joinLobby: (input) => callProcedure(cleanBase, "joinLobby", input),
-    submitGuess: (input) => callProcedure(cleanBase, "submitGuess", input),
-    getEventsUrl: (lobbyCode: string) => `${cleanBase}/api/lobby/${lobbyCode}/events`
+    getEventsUrl: (lobbyCode: string) => `${cleanBase}/api/lobby/${lobbyCode}/events`,
+    joinLobby: (input) => call((c) => c.JoinLobby(input)),
+    submitGuess: (input) => call((c) => c.SubmitGuess(input)),
+    JoinLobby: (input) => call((c) => c.JoinLobby(input)),
+    SubmitGuess: (input) => call((c) => c.SubmitGuess(input))
   }
 }

@@ -10,8 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiGameGuessRouteImport } from './routes/api/game/guess'
-import { Route as ApiLobbyJoinRouteImport } from './routes/api/lobby/join'
+import { Route as ApiRpcRouteImport } from './routes/api/rpc'
 import { Route as ApiLobbyCodeEventsRouteImport } from './routes/api/lobby/$code/events'
 
 const IndexRoute = IndexRouteImport.update({
@@ -19,14 +18,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiGameGuessRoute = ApiGameGuessRouteImport.update({
-  id: '/api/game/guess',
-  path: '/api/game/guess',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiLobbyJoinRoute = ApiLobbyJoinRouteImport.update({
-  id: '/api/lobby/join',
-  path: '/api/lobby/join',
+const ApiRpcRoute = ApiRpcRouteImport.update({
+  id: '/api/rpc',
+  path: '/api/rpc',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiLobbyCodeEventsRoute = ApiLobbyCodeEventsRouteImport.update({
@@ -37,41 +31,31 @@ const ApiLobbyCodeEventsRoute = ApiLobbyCodeEventsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/api/game/guess': typeof ApiGameGuessRoute
-  '/api/lobby/join': typeof ApiLobbyJoinRoute
+  '/api/rpc': typeof ApiRpcRoute
   '/api/lobby/$code/events': typeof ApiLobbyCodeEventsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/api/game/guess': typeof ApiGameGuessRoute
-  '/api/lobby/join': typeof ApiLobbyJoinRoute
+  '/api/rpc': typeof ApiRpcRoute
   '/api/lobby/$code/events': typeof ApiLobbyCodeEventsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/api/game/guess': typeof ApiGameGuessRoute
-  '/api/lobby/join': typeof ApiLobbyJoinRoute
+  '/api/rpc': typeof ApiRpcRoute
   '/api/lobby/$code/events': typeof ApiLobbyCodeEventsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    '/' | '/api/game/guess' | '/api/lobby/join' | '/api/lobby/$code/events'
+  fullPaths: '/' | '/api/rpc' | '/api/lobby/$code/events'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/game/guess' | '/api/lobby/join' | '/api/lobby/$code/events'
-  id:
-    | '__root__'
-    | '/'
-    | '/api/game/guess'
-    | '/api/lobby/join'
-    | '/api/lobby/$code/events'
+  to: '/' | '/api/rpc' | '/api/lobby/$code/events'
+  id: '__root__' | '/' | '/api/rpc' | '/api/lobby/$code/events'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ApiGameGuessRoute: typeof ApiGameGuessRoute
-  ApiLobbyJoinRoute: typeof ApiLobbyJoinRoute
+  ApiRpcRoute: typeof ApiRpcRoute
   ApiLobbyCodeEventsRoute: typeof ApiLobbyCodeEventsRoute
 }
 
@@ -84,18 +68,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/game/guess': {
-      id: '/api/game/guess'
-      path: '/api/game/guess'
-      fullPath: '/api/game/guess'
-      preLoaderRoute: typeof ApiGameGuessRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/lobby/join': {
-      id: '/api/lobby/join'
-      path: '/api/lobby/join'
-      fullPath: '/api/lobby/join'
-      preLoaderRoute: typeof ApiLobbyJoinRouteImport
+    '/api/rpc': {
+      id: '/api/rpc'
+      path: '/api/rpc'
+      fullPath: '/api/rpc'
+      preLoaderRoute: typeof ApiRpcRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/lobby/$code/events': {
@@ -110,8 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ApiGameGuessRoute: ApiGameGuessRoute,
-  ApiLobbyJoinRoute: ApiLobbyJoinRoute,
+  ApiRpcRoute: ApiRpcRoute,
   ApiLobbyCodeEventsRoute: ApiLobbyCodeEventsRoute,
 }
 export const routeTree = rootRouteImport

@@ -25,7 +25,7 @@ A full-stack, real-time multiplayer **Spotify Music Quiz** application built as 
 ├── shared/
 │   ├── domain/                  # @quiz/domain (Pure domain models, events, errors, contracts)
 │   │   ├── package.json
-│   │   ├── contract.ts          # Single source of truth API contract (QuizApiContract)
+│   │   ├── contract.ts          # Single source of truth Effect RPC group (QuizRpcs)
 │   │   ├── game.ts              # Game models, events (RoundStarted, RoundEnded, GameOver), errors
 │   │   ├── lobby.ts             # Lobby models, events (PlayerJoined), errors (LobbyNotFoundError, etc.)
 │   │   ├── quiz.ts              # Question (TitleQuestion, ArtistQuestion, LyricsQuestion) & Answer models
@@ -34,7 +34,7 @@ A full-stack, real-time multiplayer **Spotify Music Quiz** application built as 
 │   │
 │   └── client-sdk/              # @quiz/client-sdk (Shared typed RPC client & TanStack Query helpers)
 │       ├── package.json         # peerDependencies: @tanstack/react-query
-│       └── index.ts             # Generic callProcedure, createQuizClient, useEffectMutation, effectQueryOptions
+│       └── index.ts             # Derived QuizClient, makeQuizClient, useEffectMutation, effectQueryOptions
 │
 └── apps/
     ├── web/                     # Full-Stack TanStack Start application (Host dashboard + API)
@@ -47,14 +47,14 @@ A full-stack, real-time multiplayer **Spotify Music Quiz** application built as 
     │       │   ├── __root.tsx   # Root layout with QueryClientProvider & Outlet
     │       │   ├── index.tsx    # Host Game Dashboard & SSE monitor
     │       │   └── api/         # Dedicated REST / Server Routes (createFileRoute)
-    │       │       ├── lobby/
-    │       │       │   ├── join.ts            # POST /api/lobby/join
-    │       │       │   └── $code/events.ts    # GET /api/lobby/:code/events (SSE Stream)
-    │       │       └── game/
-    │       │           └── guess.ts           # POST /api/game/guess
+    │       │       ├── rpc.ts             # POST /api/rpc (Effect RpcServer web handler)
+    │       │       └── lobby/
+    │       │           └── $code/events.ts# GET /api/lobby/:code/events (SSE Stream)
     │       ├── server/
-    │       │   ├── effectFn.ts       # Bridge: runServerEffect, serverEffect, clientEffect, apiHandler
-    │       │   ├── effectRuntime.ts  # Managed Layer runtime providing services
+    │       │   ├── effectFn.ts       # Bridge: runServerEffect, serverEffect, clientEffect
+    │       │   ├── effectRuntime.ts  # Managed Layer runtime providing services & memoMap
+    │       │   ├── rpcHandlers.ts    # Live QuizRpcs handlers (QuizRpcs.toLayer)
+    │       │   ├── rpc.test.ts       # Integration tests for RPC server and client
     │       │   └── functions.ts      # createServerFn declarations for web SSR/RPC
     │       └── services/
     │           ├── LobbyService.ts   # In-memory Ref-based lobby manager with pub/sub Queues
@@ -105,44 +105,44 @@ A full-stack, real-time multiplayer **Spotify Music Quiz** application built as 
 
 ---
 
-### B. End-to-End Type Safety Contract Pattern (Zero Manual Client Mapping)
-**The Problem Solved**: Manual client mapping (`if (err._tag === "LobbyNotFoundError") ...`) causes silent drift where new errors (like `UsernameTakenError`) are forgotten and swallowed into generic network errors.
+### B. End-to-End Type Safety via Effect 4 `RpcGroup` (Zero Manual Mapping)
+**The Problem Solved**: Manual contract interfaces cause silent drift where handlers can return undeclared errors, routes can drift from client paths, and `res.json() as ...` casts bypass wire validation.
 
 **The Solution**:
-1. **Contract as Single Source of Truth** ([`shared/domain/contract.ts`](file:///home/gustavo/Documents/projects/learn-effect/shared/domain/contract.ts)):
+1. **RpcGroup as Single Source of Truth** ([`shared/domain/contract.ts`](file:///home/gustavo/Documents/projects/learn-effect/shared/domain/contract.ts)):
    ```typescript
-   export interface QuizApiContract {
-     joinLobby: {
-       readonly path: "/api/lobby/join"
-       readonly input: JoinLobbyInput
-       readonly success: Lobby
-       readonly errors: LobbyNotFoundError | LobbyFullError | UsernameTakenError
-     }
-     submitGuess: {
-       readonly path: "/api/game/guess"
-       readonly input: SubmitGuessInput
-       readonly success: void
-       readonly errors: GameNotFoundError
-     }
-   }
+   export const QuizRpcs = RpcGroup.make(
+     Rpc.make("JoinLobby", {
+       payload: JoinLobbyInput,
+       success: Lobby,
+       error: Schema.Union([LobbyNotFoundError, LobbyFullError, UsernameTakenError])
+     }),
+     Rpc.make("SubmitGuess", {
+       payload: SubmitGuessInput,
+       success: Schema.Void,
+       error: GameNotFoundError
+     })
+   )
    ```
-2. **Generic Effect RPC Dispatcher** ([`shared/client-sdk/index.ts`](file:///home/gustavo/Documents/projects/learn-effect/shared/client-sdk/index.ts)):
-   - Connects to the endpoint and deserializes the server's `{ _tag: "Failure", error }` payload.
-   - Directly fails into Effect's failure channel with `Effect.fail(raw.error)`.
-   - The TypeScript return type is dynamically derived:
-     `Effect.Effect<QuizApiContract[K]["success"], QuizApiContract[K]["errors"] | NetworkError>`
-3. **Consumption in UI (Mobile & Web)**:
+2. **Server Implementation with Compiler Enforcement** ([`apps/web/src/server/rpcHandlers.ts`](file:///home/gustavo/Documents/projects/learn-effect/apps/web/src/server/rpcHandlers.ts)):
+   `QuizRpcs.toLayer({...})` refuses to compile if any handler returns an error not declared in the RPC error schema.
+3. **TanStack Start Server Route** ([`apps/web/src/routes/api/rpc.ts`](file:///home/gustavo/Documents/projects/learn-effect/apps/web/src/routes/api/rpc.ts)):
+   Served via `HttpEffect.toWebHandlerLayer(RpcServer.toHttpEffect(QuizRpcs).pipe(Effect.flatten), serverLayer, { memoMap: EffectRuntime.memoMap })`.
+   Sharing `memoMap` ensures in-memory singleton state (`LobbyService`, `GameService`) is shared between host web server functions and mobile RPC calls.
+4. **Derived Client** ([`shared/client-sdk/index.ts`](file:///home/gustavo/Documents/projects/learn-effect/shared/client-sdk/index.ts)):
+   `createQuizClient(baseUrl)` derives method and error signatures automatically from `RpcClient.FromGroup`.
+5. **Consumption in UI (Mobile & Web)**:
    ```typescript
    quizClient.joinLobby(input).pipe(
      Effect.catchTags({
        UsernameTakenError: (err) => Effect.fail(new Error(`Nickname "${err.username}" taken!`)),
        LobbyNotFoundError: (err) => Effect.fail(new Error(`Lobby "${err.lobbyCode}" not found!`)),
        LobbyFullError: (err) => Effect.fail(new Error(`Lobby is full (max ${err.maxPlayers})!`)),
-       NetworkError: (err) => Effect.fail(new Error(`Connection failed: ${err.message}`))
+       RpcClientError: (err) => Effect.fail(new Error(`Connection failed: ${err.message}`))
      })
    )
    ```
-   *TypeScript strictly enforces all tags and types with zero `any`.*
+   *TypeScript strictly enforces all tags and types with zero `any` or fake casts.*
 
 ---
 
@@ -204,7 +204,7 @@ Tests:      8 passed (8)
 
 | Goal | Command / Action |
 | :--- | :--- |
-| **Add a new endpoint** | 1. Add schema to `shared/domain/` <br>2. Add entry to `QuizApiContract` in `shared/domain/contract.ts` <br>3. Implement route in `apps/web/src/routes/api/...` <br>4. Call directly via `quizClient.<method>()` in mobile |
+| **Add a new endpoint** | 1. Add schema to `shared/domain/` <br>2. Add `Rpc.make()` entry to `QuizRpcs` in `shared/domain/contract.ts` <br>3. Implement handler in `apps/web/src/server/rpcHandlers.ts` <br>4. Call directly via `quizClient.<method>()` in mobile |
 | **Run typecheck** | `pnpm -r typecheck` |
 | **Run tests** | `pnpm -r test` |
 | **Start web dev** | `pnpm --filter web dev` |

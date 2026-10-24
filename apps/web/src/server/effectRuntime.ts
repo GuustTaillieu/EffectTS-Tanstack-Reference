@@ -25,6 +25,6 @@ const GameLive = GameServiceLive.pipe(
   Layer.provide(Layer.mergeAll(LobbyLive, QuizLive))
 )
 
-const AppLive = Layer.mergeAll(CryptoLive, SpotifyHttpLive, QuizLive, LobbyLive, SpotifyLive, GameLive)
+export const AppLive = Layer.mergeAll(CryptoLive, SpotifyHttpLive, QuizLive, LobbyLive, SpotifyLive, GameLive)
 
 export const EffectRuntime = ManagedRuntime.make(AppLive)

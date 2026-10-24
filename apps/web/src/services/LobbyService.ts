@@ -111,10 +111,12 @@ export const LobbyServiceLive = Layer.effect(
             )
           }
 
-          const updated: Lobby = {
-            ...lobby,
-            players: [...lobby.players, username]
-          }
+          const updated = new Lobby({
+            code: lobby.code,
+            quizId: lobby.quizId,
+            players: [...lobby.players, username],
+            maxPlayers: lobby.maxPlayers
+          })
 
           yield* Ref.update(lobbiesRef, (map) => {
             const next = new Map(map)

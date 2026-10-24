@@ -57,7 +57,7 @@ export default function GameScreen() {
           Effect.catchTags({
             GameNotFoundError: (err) =>
               Effect.fail(new Error(`Game for lobby ${err.lobbyCode} is not currently running!`)),
-            NetworkError: (err) =>
+            RpcClientError: (err) =>
               Effect.fail(new Error(`Connection error: ${err.message}`))
           })
         ),
@@ -215,7 +215,7 @@ export default function GameScreen() {
                   style={[
                     styles.submitButton,
                     (hasSubmitted || !guessInput.trim() || submitGuessMutation.isPending) &&
-                      styles.submitButtonDisabled
+                    styles.submitButtonDisabled
                   ]}
                   onPress={handleSubmitGuess}
                   disabled={hasSubmitted || !guessInput.trim() || submitGuessMutation.isPending}

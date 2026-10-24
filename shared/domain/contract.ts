@@ -1,27 +1,30 @@
-import type { JoinLobbyInput, Lobby } from "./lobby"
-import type { SubmitGuessInput } from "./game"
-import type {
+import { Rpc, RpcGroup } from "effect/rpc"
+import { Schema } from "effect"
+import {
+  Lobby,
   LobbyNotFoundError,
   LobbyFullError,
-  UsernameTakenError
+  UsernameTakenError,
+  JoinLobbyInput
 } from "./lobby"
-import type { GameNotFoundError } from "./game"
+import { GameNotFoundError, SubmitGuessInput } from "./game"
 
 /**
- * Single source of truth for full-stack API procedures.
- * Defines input types, return types, and the exact failure error unions.
+ * Single source of truth for full-stack API procedures via Effect RPC.
+ * Automatically validates payloads, returns typed success values,
+ * and compiler-enforces the exact error channels.
  */
-export interface QuizApiContract {
-  joinLobby: {
-    readonly path: "/api/lobby/join"
-    readonly input: JoinLobbyInput
-    readonly success: Lobby
-    readonly errors: LobbyNotFoundError | LobbyFullError | UsernameTakenError
-  }
-  submitGuess: {
-    readonly path: "/api/game/guess"
-    readonly input: SubmitGuessInput
-    readonly success: void
-    readonly errors: GameNotFoundError
-  }
-}
+export const QuizRpcs = RpcGroup.make(
+  Rpc.make("JoinLobby", {
+    payload: JoinLobbyInput,
+    success: Lobby,
+    error: Schema.Union([LobbyNotFoundError, LobbyFullError, UsernameTakenError])
+  }),
+  Rpc.make("SubmitGuess", {
+    payload: SubmitGuessInput,
+    success: Schema.Void,
+    error: GameNotFoundError
+  })
+)
+
+export type QuizRpcs = typeof QuizRpcs

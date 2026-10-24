@@ -37,7 +37,7 @@ export default function JoinScreen() {
             Effect.fail(new Error(`Lobby "${err.lobbyCode}" not found on the host screen!`)),
           LobbyFullError: (err) =>
             Effect.fail(new Error(`Lobby "${err.lobbyCode}" is full!`)),
-          NetworkError: (err) =>
+          RpcClientError: (err) =>
             Effect.fail(
               new Error(`Cannot connect to server at ${quizClient.baseUrl}: ${err.message}`)
             )
