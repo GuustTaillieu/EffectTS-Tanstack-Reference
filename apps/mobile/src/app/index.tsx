@@ -13,11 +13,19 @@ import {
 import { useRouter } from "expo-router"
 import { quizClient } from "../lib/api"
 import { useJoinLobbyMutation } from "../features/lobby/hooks/useJoinLobbyMutation"
+import { useSession, signIn, signOut } from "../lib/auth-client"
 
 export default function JoinScreen() {
   const router = useRouter()
+  const { data: session } = useSession()
   const [lobbyCode, setLobbyCode] = useState("")
   const [username, setUsername] = useState("")
+
+  React.useEffect(() => {
+    if (session?.user?.name && !username) {
+      setUsername(session.user.name)
+    }
+  }, [session])
 
   const { joinLobby, isPending, errorMessage, setErrorMessage, clearError } = useJoinLobbyMutation({
     onSuccess: (lobby) => {
@@ -102,6 +110,23 @@ export default function JoinScreen() {
               <Text style={styles.buttonText}>Join Game 🚀</Text>
             )}
           </TouchableOpacity>
+
+          {session?.user ? (
+            <View style={styles.authBadge}>
+              <Text style={styles.authBadgeText}>👤 Playing as {session.user.name}</Text>
+              <TouchableOpacity onPress={() => signOut()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.authSignOutText}>Sign Out</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.spotifyButton}
+              onPress={() => signIn.social({ provider: "spotify" })}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.spotifyButtonText}>🎧 Sign in with Spotify (Optional)</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.serverInfo}>
             <Text style={styles.serverInfoLabel}>Connected Host</Text>
@@ -229,5 +254,38 @@ const styles = StyleSheet.create({
     color: "#38bdf8",
     fontSize: 12,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace"
+  },
+  authBadge: {
+    marginTop: 14,
+    padding: 10,
+    backgroundColor: "#1e293b",
+    borderRadius: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  authBadgeText: {
+    color: "#e2e8f0",
+    fontSize: 13,
+    fontWeight: "600"
+  },
+  authSignOutText: {
+    color: "#f87171",
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  spotifyButton: {
+    marginTop: 14,
+    paddingVertical: 12,
+    backgroundColor: "#18181b",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#1db954",
+    alignItems: "center"
+  },
+  spotifyButtonText: {
+    color: "#1db954",
+    fontSize: 13,
+    fontWeight: "700"
   }
 })

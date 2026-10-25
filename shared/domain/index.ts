@@ -3,6 +3,7 @@ export * from "./lobby"
 export * from "./quiz"
 export * from "./spotify"
 export * from "./contract"
+export * from "./auth"
 
 import { Schema } from "effect"
 

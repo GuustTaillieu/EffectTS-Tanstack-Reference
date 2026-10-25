@@ -9,6 +9,7 @@ import {
 } from "../server/functions"
 import { Lobby, LobbyEvent } from "@quiz/domain"
 import { effectQueryOptions, quizKeys } from "@quiz/client-sdk"
+import { useSession, signIn, signOut } from "../lib/auth-client"
 
 export const featuredQuizQuery = effectQueryOptions({
   queryKey: quizKeys.featured(),
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const quiz = Route.useLoaderData()
+  const { data: sessionData } = useSession()
   const [createdLobby, setCreatedLobby] = useState<Lobby | null>(null)
   const [joinedLobby, setJoinedLobby] = useState<Lobby | null>(null)
   const [joinCode, setJoinCode] = useState("")
@@ -95,7 +97,8 @@ function Home() {
   const handleCreateLobby = async () => {
     setIsPending(true)
     try {
-      const lobby = await Effect.runPromise(createLobby("featured-owner"))
+      const hostName = sessionData?.user?.name ?? "featured-owner"
+      const lobby = await Effect.runPromise(createLobby(hostName))
       setCreatedLobby(lobby)
       setLivePlayers(lobby.players)
       setJoinCode(lobby.code) // auto-fill code for convenience
@@ -165,13 +168,101 @@ function Home() {
 
   return (
     <main style={{ maxWidth: 700, margin: "60px auto", padding: 24 }}>
-      <header style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: "2.5rem", marginBottom: 8, color: "#38bdf8" }}>
-          🎵 Spotify Multiplayer Quiz
-        </h1>
-        <p style={{ color: "#94a3b8", fontSize: "1.1rem" }}>
-          Full-Stack TanStack Start powered entirely by <strong>Effect 4.0</strong>.
-        </p>
+      {/* Top Bar: Title & Spotify Auth */}
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          backgroundColor: "#1e293b",
+          padding: "18px 24px",
+          borderRadius: 12,
+          border: "1px solid #334155",
+          marginBottom: 32,
+          flexWrap: "wrap",
+          gap: 16
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: "1.8rem", margin: "0 0 6px 0", color: "#38bdf8" }}>
+            🎵 Spotify Music Quiz
+          </h1>
+          <p style={{ color: "#94a3b8", margin: 0, fontSize: "0.95rem" }}>
+            Powered by <strong>Effect 4.0</strong>, <strong>TanStack Start</strong> & <strong>Better Auth</strong>
+          </p>
+        </div>
+
+        {sessionData?.user ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {sessionData.user.image ? (
+              <img
+                src={sessionData.user.image}
+                alt={sessionData.user.name}
+                style={{ width: 40, height: 40, borderRadius: "50%", border: "2px solid #10b981" }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "50%",
+                  backgroundColor: "#10b981",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: "bold",
+                  color: "#fff"
+                }}
+              >
+                {sessionData.user.name.slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <div>
+              <div style={{ fontWeight: 600, color: "#f8fafc", fontSize: "0.95rem" }}>
+                {sessionData.user.name}
+              </div>
+              <div style={{ fontSize: "0.75rem", color: "#10b981", display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ fontSize: "0.6rem" }}>●</span> Spotify Connected
+              </div>
+            </div>
+            <button
+              onClick={() => signOut()}
+              style={{
+                marginLeft: 6,
+                backgroundColor: "#334155",
+                color: "#cbd5e1",
+                border: "none",
+                padding: "6px 12px",
+                borderRadius: 6,
+                cursor: "pointer",
+                fontSize: "0.85rem"
+              }}
+            >
+              Sign Out
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => signIn.social({ provider: "spotify", callbackURL: "/" })}
+            style={{
+              backgroundColor: "#1DB954",
+              color: "#fff",
+              border: "none",
+              padding: "10px 18px",
+              borderRadius: 9999,
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              cursor: "pointer",
+              boxShadow: "0 2px 10px rgba(29, 185, 84, 0.3)",
+              transition: "transform 0.1s ease"
+            }}
+          >
+            <span style={{ fontSize: "1.1rem" }}>🎧</span>
+            <span>Connect Spotify</span>
+          </button>
+        )}
       </header>
 
       {/* Featured Quiz Card */}

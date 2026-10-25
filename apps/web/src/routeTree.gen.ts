@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiRpcRouteImport } from './routes/api/rpc'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiLobbyCodeEventsRouteImport } from './routes/api/lobby/$code/events'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const ApiRpcRoute = ApiRpcRouteImport.update({
   path: '/api/rpc',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiLobbyCodeEventsRoute = ApiLobbyCodeEventsRouteImport.update({
   id: '/api/lobby/$code/events',
   path: '/api/lobby/$code/events',
@@ -32,30 +38,34 @@ const ApiLobbyCodeEventsRoute = ApiLobbyCodeEventsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/rpc': typeof ApiRpcRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/lobby/$code/events': typeof ApiLobbyCodeEventsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/rpc': typeof ApiRpcRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/lobby/$code/events': typeof ApiLobbyCodeEventsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/rpc': typeof ApiRpcRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/lobby/$code/events': typeof ApiLobbyCodeEventsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/rpc' | '/api/lobby/$code/events'
+  fullPaths: '/' | '/api/rpc' | '/api/auth/$' | '/api/lobby/$code/events'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/rpc' | '/api/lobby/$code/events'
-  id: '__root__' | '/' | '/api/rpc' | '/api/lobby/$code/events'
+  to: '/' | '/api/rpc' | '/api/auth/$' | '/api/lobby/$code/events'
+  id: '__root__' | '/' | '/api/rpc' | '/api/auth/$' | '/api/lobby/$code/events'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiRpcRoute: typeof ApiRpcRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiLobbyCodeEventsRoute: typeof ApiLobbyCodeEventsRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRpcRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/lobby/$code/events': {
       id: '/api/lobby/$code/events'
       path: '/api/lobby/$code/events'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiRpcRoute: ApiRpcRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiLobbyCodeEventsRoute: ApiLobbyCodeEventsRoute,
 }
 export const routeTree = rootRouteImport

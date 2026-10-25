@@ -13,7 +13,9 @@
       "@quiz/domain": ["./shared/domain/index.ts"],
       "@quiz/domain/*": ["./shared/domain/*"],
       "@quiz/client-sdk": ["./shared/client-sdk/index.ts"],
-      "@quiz/client-sdk/*": ["./shared/client-sdk/*"]
+      "@quiz/client-sdk/*": ["./shared/client-sdk/*"],
+      "@quiz/db": ["./shared/db/index.ts"],
+      "@quiz/db/*": ["./shared/db/*"]
     }
   }
 }

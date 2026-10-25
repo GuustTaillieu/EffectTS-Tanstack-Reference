@@ -23,18 +23,26 @@ A full-stack, real-time multiplayer **Spotify Music Quiz** application built as 
 ├── CONTEXT.md                   # This document
 │
 ├── shared/
-│   ├── domain/                  # @quiz/domain (Pure domain models, events, errors, contracts)
+│   ├── domain/                  # @quiz/domain (Pure domain models, events, errors, contracts, auth)
 │   │   ├── package.json
 │   │   ├── contract.ts          # Single source of truth Effect RPC group (QuizRpcs)
 │   │   ├── game.ts              # Game models, events (RoundStarted, RoundEnded, GameOver), errors
 │   │   ├── lobby.ts             # Lobby models, events (PlayerJoined), errors (LobbyNotFoundError, etc.)
 │   │   ├── quiz.ts              # Question (TitleQuestion, ArtistQuestion, LyricsQuestion) & Answer models
 │   │   ├── spotify.ts           # Spotify track schemas
+│   │   ├── auth.ts              # AuthUser, UnauthorizedError schemas
 │   │   └── index.ts             # Barrel export + NetworkError schema
 │   │
-│   └── client-sdk/              # @quiz/client-sdk (Shared typed RPC client & TanStack Query helpers)
-│       ├── package.json         # peerDependencies: @tanstack/react-query
-│       └── index.ts             # Derived QuizClient, makeQuizClient, useEffectMutation, effectQueryOptions
+│   ├── client-sdk/              # @quiz/client-sdk (Shared typed RPC client & TanStack Query helpers)
+│   │   ├── package.json         # peerDependencies: @tanstack/react-query
+│   │   └── index.ts             # Derived QuizClient, makeQuizClient, useEffectMutation, effectQueryOptions
+│   │
+│   └── db/                      # @quiz/db (Drizzle ORM + SQLite database schemas & Effect DatabaseService)
+│       ├── package.json
+│       ├── src/schema/          # Better Auth tables (user, session, account) & Domain tables (quizzes, game_sessions)
+│       ├── src/connection.ts    # Auto-bootstrapping SQLite connection with in-memory test fallback
+│       ├── src/service.ts       # DatabaseService Effect Service and Layer
+│       └── index.ts             # Barrel export
 │
 └── apps/
     ├── web/                     # Full-Stack TanStack Start application (Host dashboard + API)
@@ -212,14 +220,15 @@ All projects in the monorepo compile cleanly and pass all automated tests:
 ```bash
 # 1. Typecheck entire monorepo:
 $ pnpm -r typecheck
-Scope: 4 of 5 workspace projects
+Scope: 5 of 6 workspace projects
+shared/db typecheck:   Done (0 errors)
 apps/mobile typecheck: Done (0 errors)
 apps/web typecheck:    Done (0 errors)
 
 # 2. Run unit and integration tests:
 $ pnpm -r test
-Test Files: 5 passed (5)
-Tests:      10 passed (10)
+Test Files: 6 passed (6)
+Tests:      13 passed (13)
 ```
 
 ### Active Dev Servers:

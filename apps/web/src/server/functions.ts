@@ -16,6 +16,15 @@ import { JoinLobbyInput, SubmitGuessInput } from "@quiz/domain"
 // Server Functions (Top-level declarations required for TanStack Start compiler)
 // =============================================================================
 
+import { getRequestHeaders } from "@tanstack/react-start/server"
+import { auth } from "../lib/auth"
+
+export const getSessionFn = createServerFn({ method: "GET" }).handler(async () => {
+  const headers = getRequestHeaders()
+  const session = await auth.api.getSession({ headers })
+  return session
+})
+
 export const getFeaturedQuizFn = createServerFn({ method: "GET" })
   .handler(serverEffect(() =>
     Effect.flatMap(QuizService, (s) => s.getFake())
