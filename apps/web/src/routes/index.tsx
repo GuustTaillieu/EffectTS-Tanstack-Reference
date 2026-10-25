@@ -97,11 +97,21 @@ function Home() {
   const handleCreateLobby = async () => {
     setIsPending(true)
     try {
-      const hostName = sessionData?.user?.name ?? "featured-owner"
-      const lobby = await Effect.runPromise(createLobby(hostName))
-      setCreatedLobby(lobby)
-      setLivePlayers(lobby.players)
-      setJoinCode(lobby.code) // auto-fill code for convenience
+      const hostName = sessionData?.user?.name
+      const program = createLobby(hostName).pipe(
+        Effect.tap((lobby) => {
+          setCreatedLobby(lobby)
+          setLivePlayers(lobby.players)
+          setJoinCode(lobby.code) // auto-fill code for convenience
+          setErrorMessage(null)
+          return Effect.void
+        }),
+        Effect.catchTag("UnauthorizedError", (err) => {
+          setErrorMessage(err.message)
+          return Effect.void
+        })
+      )
+      await Effect.runPromise(program)
     } finally {
       setIsPending(false)
     }
@@ -285,45 +295,87 @@ function Home() {
         {/* Section 1: Host a Lobby */}
         <div style={{ backgroundColor: "#1e293b", padding: 20, borderRadius: 12, border: "1px solid #334155" }}>
           <h3 style={{ marginTop: 0 }}>1. Host a Lobby</h3>
-          <p style={{ color: "#94a3b8", fontSize: "0.9rem" }}>
-            Creates a room with max 2 players so you can test errors.
-          </p>
-          <button
-            onClick={handleCreateLobby}
-            disabled={isPending}
-            style={{
-              backgroundColor: "#10b981",
-              color: "#fff",
-              padding: "10px 20px",
-              borderRadius: 8,
-              border: "none",
-              fontWeight: "bold",
-              cursor: isPending ? "not-allowed" : "pointer",
-              width: "100%"
-            }}
-          >
-            {isPending ? "Creating..." : "Create Lobby as Host"}
-          </button>
-
-          {createdLobby && (
-            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ padding: 12, backgroundColor: "#064e3b", borderRadius: 8, fontSize: "0.9rem" }}>
-                Room Code: <strong>{createdLobby.code}</strong> (Players: {livePlayers.join(", ")})
-              </div>
+          {sessionData?.user ? (
+            <>
+              <p style={{ color: "#94a3b8", fontSize: "0.9rem" }}>
+                Hosting as <strong>{sessionData.user.name}</strong>. Creates a room with real-time SSE sync.
+              </p>
               <button
-                onClick={handleStartGame}
+                onClick={handleCreateLobby}
                 disabled={isPending}
                 style={{
-                  backgroundColor: "#8b5cf6",
+                  backgroundColor: "#10b981",
                   color: "#fff",
                   padding: "10px 20px",
                   borderRadius: 8,
                   border: "none",
                   fontWeight: "bold",
-                  cursor: isPending ? "not-allowed" : "pointer"
+                  cursor: isPending ? "not-allowed" : "pointer",
+                  width: "100%"
                 }}
               >
-                {isPending ? "Starting..." : "🚀 Start Game"}
+                {isPending ? "Creating..." : `Create Lobby as ${sessionData.user.name}`}
+              </button>
+
+              {createdLobby && (
+                <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ padding: 12, backgroundColor: "#064e3b", borderRadius: 8, fontSize: "0.9rem" }}>
+                    Room Code: <strong>{createdLobby.code}</strong> (Players: {livePlayers.join(", ")})
+                  </div>
+                  <button
+                    onClick={handleStartGame}
+                    disabled={isPending}
+                    style={{
+                      backgroundColor: "#8b5cf6",
+                      color: "#fff",
+                      padding: "10px 20px",
+                      borderRadius: 8,
+                      border: "none",
+                      fontWeight: "bold",
+                      cursor: isPending ? "not-allowed" : "pointer"
+                    }}
+                  >
+                    {isPending ? "Starting..." : "🚀 Start Game"}
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div
+              style={{
+                backgroundColor: "#0f172a",
+                border: "1px dashed #38bdf8",
+                borderRadius: 10,
+                padding: "24px 16px",
+                textAlign: "center"
+              }}
+            >
+              <div style={{ fontSize: "1.8rem", marginBottom: 8 }}>🔒</div>
+              <div style={{ fontWeight: "bold", fontSize: "0.95rem", color: "#f8fafc", marginBottom: 6 }}>
+                Host Login Required
+              </div>
+              <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: "0 0 16px 0", lineHeight: 1.4 }}>
+                Only logged-in users with Spotify can create and host quiz lobbies.
+              </p>
+              <button
+                onClick={() => signIn.social({ provider: "spotify", callbackURL: "/" })}
+                style={{
+                  backgroundColor: "#1DB954",
+                  color: "#fff",
+                  border: "none",
+                  padding: "9px 18px",
+                  borderRadius: 9999,
+                  fontWeight: "bold",
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  boxShadow: "0 2px 10px rgba(29, 185, 84, 0.3)"
+                }}
+              >
+                <span>🎧</span>
+                <span>Log in to Host</span>
               </button>
             </div>
           )}

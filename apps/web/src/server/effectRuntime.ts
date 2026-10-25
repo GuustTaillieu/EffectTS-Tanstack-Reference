@@ -12,7 +12,7 @@ import { AuthServiceLive } from "./authService";
 const CryptoLive = CryptoServiceLive
 const SpotifyHttpLive = SpotifyHttpClientLive
 const DatabaseLive = DatabaseServiceLive
-const AuthLive = AuthServiceLive
+const AuthLive = AuthServiceLive.pipe(Layer.provide(DatabaseLive))
 
 const QuizLive = QuizServiceLive.pipe(
   Layer.provide(CryptoLive)

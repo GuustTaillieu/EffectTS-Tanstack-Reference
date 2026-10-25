@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach } from "vitest"
 import { Effect } from "effect"
 import { EffectRuntime } from "./effectRuntime"
 import { AuthService } from "./authService"
-import { db, user, account, eq } from "@quiz/db"
+import { createLobbyFn } from "./functions"
+import { db, user, account, gameSessions, eq, DatabaseService } from "@quiz/db"
 
 describe("AuthService & Database Integration (Effect + Better Auth + Drizzle)", () => {
   const testUserId = "user_test_123"
@@ -11,6 +12,7 @@ describe("AuthService & Database Integration (Effect + Better Auth + Drizzle)", 
     // Clean up test records
     db.delete(account).where(eq(account.userId, testUserId)).run()
     db.delete(user).where(eq(user.id, testUserId)).run()
+    db.delete(gameSessions).where(eq(gameSessions.lobbyCode, "TEST01")).run()
   })
 
   it("fails with UnauthorizedError when requiring session without valid headers", async () => {
@@ -30,7 +32,7 @@ describe("AuthService & Database Integration (Effect + Better Auth + Drizzle)", 
     })
   })
 
-  it("retrieves the Spotify access token for an authenticated user from the database", async () => {
+  it("retrieves the Spotify access token for an authenticated user from the database via DatabaseService", async () => {
     // 1. Insert mock Spotify user and account into DB
     const now = new Date()
     const expiresAt = new Date(Date.now() + 1000 * 3600) // 1 hour in the future
@@ -57,7 +59,7 @@ describe("AuthService & Database Integration (Effect + Better Auth + Drizzle)", 
       updatedAt: now,
     }).run()
 
-    // 2. Fetch the token via Effect AuthService
+    // 2. Fetch the token via Effect AuthService (which uses DatabaseService)
     const program = Effect.gen(function* () {
       const authService = yield* AuthService
       return yield* authService.getSpotifyAccessToken(testUserId)
@@ -81,5 +83,37 @@ describe("AuthService & Database Integration (Effect + Better Auth + Drizzle)", 
     const result = await EffectRuntime.runPromise(program)
     expect(result.caught).toBe(true)
     expect(result.reason).toContain("No connected Spotify account found")
+  })
+
+  it("uses decoupled DatabaseService to create and complete game sessions", async () => {
+    const now = new Date()
+    db.insert(user).values({
+      id: testUserId,
+      name: "Host User",
+      email: "host@test.com",
+      emailVerified: true,
+      createdAt: now,
+      updatedAt: now,
+    }).run()
+
+    const program = Effect.gen(function* () {
+      const dbService = yield* DatabaseService
+      yield* dbService.gameSessions.create({
+        id: "sess_001",
+        lobbyCode: "TEST01",
+        hostUserId: testUserId,
+        quizId: undefined,
+      })
+
+      yield* dbService.gameSessions.complete(
+        "TEST01",
+        JSON.stringify([{ player: "Alice", score: 100 }])
+      )
+
+      return true
+    })
+
+    const success = await EffectRuntime.runPromise(program)
+    expect(success).toBe(true)
   })
 })

@@ -5,7 +5,7 @@ export type WireError<E> = E extends { readonly _tag: infer Tag }
   ? {
     readonly [K in keyof E as E[K] extends Function
     ? never
-    : K extends symbol | "cause" | "stack" | "name" | "message"
+    : K extends symbol | "cause" | "stack" | "name"
     ? never
     : K extends `~${string}`
     ? never

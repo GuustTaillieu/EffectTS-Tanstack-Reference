@@ -30,10 +30,24 @@ export const getFeaturedQuizFn = createServerFn({ method: "GET" })
     Effect.flatMap(QuizService, (s) => s.getFake())
   ))
 
+import { AuthService } from "./authService"
+
 export const createLobbyFn = createServerFn({ method: "POST" })
-  .validator(Schema.decodeUnknownSync(Schema.String))
-  .handler(serverEffect((host: string) =>
-    Effect.flatMap(LobbyService, (s) => s.create({ host, quizId: "featured-quiz" }))
+  .validator(Schema.decodeUnknownSync(Schema.UndefinedOr(Schema.String)))
+  .handler(serverEffect((hostOverride?: string) =>
+    Effect.gen(function* () {
+      let headers = new Headers()
+      try {
+        headers = getRequestHeaders()
+      } catch {
+        // Fallback for non-request environments
+      }
+      const authService = yield* AuthService
+      const session = yield* authService.requireSession(headers)
+      const host = session.user.name || hostOverride || "Host"
+      const lobbyService = yield* LobbyService
+      return yield* lobbyService.create({ host, quizId: "featured-quiz" })
+    })
   ))
 
 export const joinLobbyFn = createServerFn({ method: "POST" })

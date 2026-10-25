@@ -37,11 +37,12 @@ A full-stack, real-time multiplayer **Spotify Music Quiz** application built as 
 │   │   ├── package.json         # peerDependencies: @tanstack/react-query
 │   │   └── index.ts             # Derived QuizClient, makeQuizClient, useEffectMutation, effectQueryOptions
 │   │
-│   └── db/                      # @quiz/db (Drizzle ORM + SQLite database schemas & Effect DatabaseService)
+│   └── db/                      # @quiz/db (Drizzle ORM + SQLite/Postgres schemas & Decoupled DatabaseService)
 │       ├── package.json
+│       ├── migrations/          # 0000_init.sql (Standard SQL migration DDL decoupled from TypeScript)
 │       ├── src/schema/          # Better Auth tables (user, session, account) & Domain tables (quizzes, game_sessions)
-│       ├── src/connection.ts    # Auto-bootstrapping SQLite connection with in-memory test fallback
-│       ├── src/service.ts       # DatabaseService Effect Service and Layer
+│       ├── src/connection.ts    # Auto-bootstrapping connection with in-memory test fallback
+│       ├── src/service.ts       # Driver-agnostic DatabaseService (UserRepository, GameSessionRepository)
 │       └── index.ts             # Barrel export
 │
 └── apps/
@@ -228,7 +229,7 @@ apps/web typecheck:    Done (0 errors)
 # 2. Run unit and integration tests:
 $ pnpm -r test
 Test Files: 6 passed (6)
-Tests:      13 passed (13)
+Tests:      14 passed (14)
 ```
 
 ### Active Dev Servers:
