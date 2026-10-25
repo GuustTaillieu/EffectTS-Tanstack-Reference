@@ -70,7 +70,8 @@ describe("AuthService & Database Integration (Effect + Better Auth + Drizzle)", 
   it("fails with SpotifyAuthError if user has no Spotify account linked", async () => {
     const program = Effect.gen(function* () {
       const authService = yield* AuthService
-      return yield* authService.getSpotifyAccessToken("unknown_user_999")
+      yield* authService.getSpotifyAccessToken("unknown_user_999")
+      return { caught: false, reason: "" }
     }).pipe(
       Effect.catchTag("SpotifyAuthError", (err) =>
         Effect.succeed({ caught: true, reason: err.reason })
